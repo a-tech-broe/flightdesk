@@ -39,7 +39,7 @@ data "aws_eip" "existing" {
 
 resource "aws_security_group" "flightdesk_dev" {
   name        = "flightdesk-dev"
-  description = "FlightDesk dev — HTTP, HTTPS, SSH"
+  description = "FlightDesk dev - HTTP, HTTPS, SSH"
 
   ingress {
     from_port   = 22

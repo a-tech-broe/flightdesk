@@ -41,46 +41,78 @@ jobs:
           TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
           TF_VAR_eip_allocation_id: ${{ secrets.EC2_EIP_ALLOCATION_ID }}
         run: |
+          in_state() { terraform state list 2>/dev/null | grep -qx "$1"; }
+
           import_if_missing() {
             local addr=$1 id=$2
-            terraform state show "$addr" &>/dev/null && { echo "SKIP $addr (already in state)"; return; }
-            echo "IMPORT $addr => $id"
-            terraform import "$addr" "$id" || true
+            if in_state "$addr"; then
+              echo "SKIP: $addr (already in state)"
+            else
+              echo "IMPORT: $addr => $id"
+              terraform import "$addr" "$id"
+            fi
           }
+
+          # Resolve default VPC for precise SG filtering
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=isDefault,Values=true" \
+            --query 'Vpcs[0].VpcId' --output text)
+          echo "Default VPC: $VPC_ID"
 
           # EC2 security group
           SG_ID=$(aws ec2 describe-security-groups \
-            --filters "Name=group-name,Values=flightdesk-dev" \
-            --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)
-          [[ "$SG_ID" =~ ^sg- ]] && import_if_missing aws_security_group.flightdesk_dev "$SG_ID"
+            --filters "Name=group-name,Values=flightdesk-dev" "Name=vpc-id,Values=$VPC_ID" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          echo "EC2 SG: $SG_ID"
+          if [[ "$SG_ID" =~ ^sg- ]]; then
+            import_if_missing aws_security_group.flightdesk_dev "$SG_ID"
+          fi
 
           # ALB security group
           ALB_SG_ID=$(aws ec2 describe-security-groups \
-            --filters "Name=group-name,Values=flightdesk-alb-dev" \
-            --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)
-          [[ "$ALB_SG_ID" =~ ^sg- ]] && import_if_missing aws_security_group.alb "$ALB_SG_ID"
+            --filters "Name=group-name,Values=flightdesk-alb-dev" "Name=vpc-id,Values=$VPC_ID" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          echo "ALB SG: $ALB_SG_ID"
+          if [[ "$ALB_SG_ID" =~ ^sg- ]]; then
+            import_if_missing aws_security_group.alb "$ALB_SG_ID"
+          fi
 
           # EC2 instance
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=flightdesk-dev" \
                       "Name=instance-state-name,Values=running,stopped,pending" \
-            --query 'Reservations[0].Instances[0].InstanceId' --output text 2>/dev/null || true)
-          [[ "$INSTANCE_ID" =~ ^i- ]] && import_if_missing aws_instance.flightdesk_dev "$INSTANCE_ID"
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          echo "Instance: $INSTANCE_ID"
+          if [[ "$INSTANCE_ID" =~ ^i- ]]; then
+            import_if_missing aws_instance.flightdesk_dev "$INSTANCE_ID"
+          fi
 
-          # EIP association
-          import_if_missing aws_eip_association.flightdesk_dev "${{ secrets.EC2_EIP_ALLOCATION_ID }}" || true
+          # EIP association (import by allocation ID; || true because it may not exist yet)
+          if ! in_state aws_eip_association.flightdesk_dev; then
+            echo "IMPORT: aws_eip_association.flightdesk_dev => ${{ secrets.EC2_EIP_ALLOCATION_ID }}"
+            terraform import aws_eip_association.flightdesk_dev \
+              "${{ secrets.EC2_EIP_ALLOCATION_ID }}" || true
+          else
+            echo "SKIP: aws_eip_association.flightdesk_dev (already in state)"
+          fi
 
           # ALB
           ALB_ARN=$(aws elbv2 describe-load-balancers \
             --names flightdesk-dev \
-            --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || true)
-          [[ "$ALB_ARN" =~ ^arn: ]] && import_if_missing aws_lb.flightdesk "$ALB_ARN"
+            --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "")
+          echo "ALB: $ALB_ARN"
+          if [[ "$ALB_ARN" =~ ^arn: ]]; then
+            import_if_missing aws_lb.flightdesk "$ALB_ARN"
+          fi
 
           # Target group
           TG_ARN=$(aws elbv2 describe-target-groups \
             --names flightdesk-dev \
-            --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || true)
-          [[ "$TG_ARN" =~ ^arn: ]] && import_if_missing aws_lb_target_group.flightdesk "$TG_ARN"
+            --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "")
+          echo "TG: $TG_ARN"
+          if [[ "$TG_ARN" =~ ^arn: ]]; then
+            import_if_missing aws_lb_target_group.flightdesk "$TG_ARN"
+          fi
 
       - name: Terraform Plan
         working-directory: infrastructure/terraform

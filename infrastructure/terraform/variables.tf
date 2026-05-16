@@ -14,8 +14,3 @@ variable "key_pair_name" {
   description = "Name of existing EC2 key pair"
   type        = string
 }
-
-variable "eip_allocation_id" {
-  description = "Allocation ID of the existing Elastic IP (eipalloc-xxxxx)"
-  type        = string
-}

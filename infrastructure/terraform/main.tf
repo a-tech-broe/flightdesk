@@ -33,10 +33,6 @@ data "aws_ami" "al2023" {
   }
 }
 
-data "aws_eip" "existing" {
-  id = var.eip_allocation_id
-}
-
 resource "aws_security_group" "flightdesk_dev" {
   name        = "flightdesk-dev"
   description = "FlightDesk dev - SSH and ALB only"
@@ -99,7 +95,3 @@ resource "aws_instance" "flightdesk_dev" {
   }
 }
 
-resource "aws_eip_association" "flightdesk_dev" {
-  instance_id   = aws_instance.flightdesk_dev.id
-  allocation_id = var.eip_allocation_id
-}

@@ -10,3 +10,11 @@ output "public_ip" {
 output "ami_id" {
   value = data.aws_ami.al2023.id
 }
+
+output "alb_dns" {
+  value = aws_lb.flightdesk.dns_name
+}
+
+output "domain" {
+  value = "https://flightadmins.com"
+}

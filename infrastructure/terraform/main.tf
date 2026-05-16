@@ -39,9 +39,11 @@ data "aws_eip" "existing" {
 
 resource "aws_security_group" "flightdesk_dev" {
   name        = "flightdesk-dev"
-  description = "FlightDesk dev - HTTP, HTTPS, SSH"
+  description = "FlightDesk dev - SSH and ALB only"
+  vpc_id      = data.aws_vpc.default.id
 
   ingress {
+    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -49,17 +51,11 @@ resource "aws_security_group" "flightdesk_dev" {
   }
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
   }
 
   egress {

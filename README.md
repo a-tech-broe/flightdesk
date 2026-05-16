@@ -1,151 +1,192 @@
-# flightdesk
+# FlightDesk
 
+Flight logging and aircraft scheduling for pilot training schools.
 
-Recommended MVP Stack
+---
 
-Frontend
+## Stack
 
-* Next.js￼
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 14 (App Router, TypeScript, Tailwind CSS) |
+| Backend API | FastAPI (Python 3.11) |
+| Database | PostgreSQL 15 |
+| Reverse Proxy | Nginx |
+| Containers | Docker + Docker Compose |
+| Hosting | AWS EC2 (Amazon Linux 2023) |
+| SSL | ACM / Let's Encrypt |
+| CI/CD | GitHub Actions |
 
-Backend API
+---
 
-* FastAPI￼
+## Project Structure
 
-Database
+```
+flightdesk/
+├── frontend/                  # Next.js app
+│   └── src/
+│       ├── app/
+│       │   ├── (auth)/        # Login, Register
+│       │   └── (protected)/   # Dashboard, Flights, Scheduling
+│       ├── components/        # Navbar, FlightForm, BookingCalendar
+│       ├── contexts/          # AuthContext (JWT)
+│       ├── lib/               # Axios API client
+│       └── types/             # Shared TypeScript types
+├── backend/                   # FastAPI app
+│   └── app/
+│       ├── models/            # SQLAlchemy: User, Aircraft, Flight, Booking
+│       ├── schemas/           # Pydantic request/response schemas
+│       ├── routers/           # auth, flights, aircraft, bookings
+│       └── auth/              # JWT utils (python-jose + passlib)
+├── nginx/
+│   ├── nginx.dev.conf         # HTTP only (local/dev)
+│   └── nginx.conf             # HTTPS production config
+├── infrastructure/
+│   └── setup.sh               # EC2 bootstrap script
+├── .github/workflows/
+│   └── deploy.yml             # SSH deploy to EC2 on push to main
+├── docker-compose.yml
+└── .env.example
+```
 
-* PostgreSQL￼
+---
 
-Reverse Proxy
+## Architecture
 
-* Nginx￼
-
-SSL Certificates
-
-* ACM
-
-Container Runtime
-
-* Docker￼
-* Docker Compose
-
-Hosting
-
-* Amazon Web Services EC2
-
-
-Recommended Infrastructure
-
-Single EC2 Instance (Initial MVP)
-
-This is enough for:
-
-* First users
-* Demo
-* Portfolio
-* Pilot schools testing
-
-EC2 Specs
-
-* Amazon Linux 2023
-* m5.xlarge
-* 30–50GB gp3 storage
-
-Architecture
-
+```
 Internet
    ↓
 Route53 DNS
    ↓
-Nginx Reverse Proxy
-   ↓
-Docker Compose
- ├── Frontend (Next.js)
- ├── Backend API (FastAPI)
- └── PostgreSQL
+Nginx (port 80/443)
+   ├── /api/*  → FastAPI (port 8000)
+   └── /*      → Next.js (port 3000)
+                     ↓
+               PostgreSQL (internal)
+```
 
+---
 
-MVP Components
+## Features
 
-1. Frontend Container
+### Authentication
+- Email/password registration and login
+- JWT tokens (24-hour expiry)
+- Protected routes — redirect to login if unauthenticated
 
-Responsibilities
+### Flight Logging
+- Log flights with full logbook fields: total time, PIC, dual received, night, instrument, cross-country
+- Day and night landing counts
+- Departure/destination (ICAO codes), departure/arrival times, aircraft, notes
+- View full logbook as a sortable table with running totals
+- Edit and delete any of your flights
 
-* Login
-* Dashboard
-* Flight logging UI
-* Aircraft scheduling UI
+### Aircraft Scheduling
+- FullCalendar week/month/day view showing all bookings
+- Click any time slot to create a booking
+- Click your own booking to edit or cancel it
+- Conflict detection — prevents double-booking the same aircraft
+- Shared calendar so all pilots see availability
 
-2. Backend API Container
+### Dashboard
+- Total flight hours, total flights logged, upcoming booking count
+- Recent flights list
+- Upcoming bookings list
 
-Responsibilities
+---
 
-* Authentication
-* Flight APIs
-* Aircraft APIs
-* Scheduling APIs
+## Running Locally
 
-flightdesk/
-├── frontend/
-├── backend/
-├── nginx/
-├── docker-compose.yml
-├── .env
-└── infrastructure/
+**Prerequisites:** Docker + Docker Compose
 
+```bash
+# 1. Clone
+git clone <repo-url>
+cd flightdesk
 
-Initial MVP Features Only
+# 2. Set up environment
+cp .env.example .env
+# Edit .env — set POSTGRES_PASSWORD and generate a SECRET_KEY:
+#   openssl rand -hex 32
 
-Authentication
+# 3. Start everything
+docker compose up --build
 
-* Email/password login
+# App: http://localhost
+# API docs: http://localhost/api/docs
+```
 
-Flight Logging
+---
 
-* Add flight
-* View flights
-* Edit flights
+## Deploying to EC2
 
-Aircraft Scheduling
+### 1. Provision the instance
 
-* Simple booking calendar
+- Amazon Linux 2023, m5.xlarge, 30–50 GB gp3 storage
+- Open ports 22, 80, 443 in the security group
 
-Dashboard
+### 2. Bootstrap the server
 
-* Total hours
-* Recent flights
-* Upcoming bookings
+```bash
+scp infrastructure/setup.sh ec2-user@<host>:~/
+ssh ec2-user@<host> "bash ~/setup.sh"
+# Log out and back in for Docker group permissions
+```
 
-That’s enough for a real usable MVP.
+### 3. Deploy the app
 
-⸻
+```bash
+ssh ec2-user@<host>
+git clone <repo-url> /app/flightdesk
+cp /app/flightdesk/.env.example /app/flightdesk/.env
+# Edit .env with production values
 
-Authentication Recommendation
+# Add SSL certs (from ACM export or certbot):
+# /app/flightdesk/nginx/ssl/fullchain.pem
+# /app/flightdesk/nginx/ssl/privkey.pem
 
-Use:
+# Swap to production nginx config in docker-compose.yml:
+# nginx.dev.conf → nginx.conf
 
-* Clerk￼
-
-Why:
-
-* Faster MVP
-* Secure auth
-* MFA built-in
-* OAuth later
-
-⸻
-
-CI/CD (Simple)
-
-Use:
-
-* GitHub Actions￼
-
-Pipeline:
-Push to main
-   ↓
-Build Docker images
-   ↓
-SSH into EC2
-   ↓
-docker compose pull
+cd /app/flightdesk
 docker compose up -d
+```
+
+### 4. Configure GitHub Actions CI/CD
+
+Add these secrets to the GitHub repo (Settings → Secrets):
+
+| Secret | Value |
+|---|---|
+| `EC2_HOST` | Public IP or domain of your EC2 instance |
+| `EC2_USERNAME` | `ec2-user` |
+| `EC2_SSH_KEY` | Private key for SSH access |
+
+Push to `main` to trigger an automatic deploy.
+
+---
+
+## API Reference
+
+All endpoints (except `/auth/register` and `/auth/login`) require:
+```
+Authorization: Bearer <token>
+```
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/auth/register` | Create account |
+| POST | `/auth/login` | Get JWT token |
+| GET | `/auth/me` | Current user |
+| GET | `/flights` | List your flights |
+| POST | `/flights` | Log a flight |
+| PUT | `/flights/{id}` | Update a flight |
+| DELETE | `/flights/{id}` | Delete a flight |
+| GET | `/aircraft` | List all aircraft |
+| POST | `/aircraft` | Add an aircraft |
+| GET | `/bookings` | List all bookings |
+| POST | `/bookings` | Create a booking |
+| PUT | `/bookings/{id}` | Update your booking |
+| DELETE | `/bookings/{id}` | Cancel your booking |
+
+Interactive docs available at `/api/docs` (Swagger UI).

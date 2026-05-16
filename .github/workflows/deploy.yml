@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to EC2 (main)
 
 on:
   push:
@@ -6,22 +6,48 @@ on:
 
 jobs:
   deploy:
+    name: Deploy app
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
+          host: ${{ secrets.EC2_EIP_HOST }}
+          username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          envs: POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,SECRET_KEY,NEXT_PUBLIC_API_URL
           script: |
+            cloud-init status --wait 2>/dev/null || true
+
+            if [ ! -d /app/flightdesk/.git ]; then
+              git clone \
+                https://oauth2:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git \
+                /app/flightdesk
+            fi
+
             cd /app/flightdesk
-            git pull origin main
-            docker compose build --no-cache
-            docker compose up -d
+            git fetch origin
+            git checkout main
+            git reset --hard origin/main
+
+            cat > .env <<EOF
+            POSTGRES_DB=${POSTGRES_DB}
+            POSTGRES_USER=${POSTGRES_USER}
+            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            SECRET_KEY=${SECRET_KEY}
+            ALGORITHM=HS256
+            ACCESS_TOKEN_EXPIRE_MINUTES=1440
+            NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+            EOF
+
+            docker compose up -d --build
             docker system prune -f
             echo "Deploy complete: $(date)"
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}

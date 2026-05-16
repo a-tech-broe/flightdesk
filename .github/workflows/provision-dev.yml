@@ -1,0 +1,92 @@
+name: Provision & Deploy (dev)
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  provision:
+    name: Terraform — EC2
+    runs-on: ubuntu-latest
+    outputs:
+      public_ip: ${{ steps.output.outputs.public_ip }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.0"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
+          TF_VAR_eip_allocation_id: ${{ secrets.EC2_EIP_ALLOCATION_ID }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
+          TF_VAR_eip_allocation_id: ${{ secrets.EC2_EIP_ALLOCATION_ID }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get public IP
+        id: output
+        working-directory: infrastructure/terraform
+        run: echo "public_ip=$(terraform output -raw public_ip)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy app
+    runs-on: ubuntu-latest
+    needs: provision
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_EIP_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            # Wait for cloud-init to finish (no-op on subsequent deploys)
+            cloud-init status --wait 2>/dev/null || true
+
+            # First-time clone
+            if [ ! -d /app/flightdesk/.git ]; then
+              git clone \
+                https://oauth2:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git \
+                /app/flightdesk
+            fi
+
+            cd /app/flightdesk
+            git fetch origin
+            git checkout dev
+            git reset --hard origin/dev
+
+            # Create .env on first deploy — edit manually with real values after
+            [ -f .env ] || cp .env.example .env
+
+            docker compose up -d --build
+            docker system prune -f
+            echo "Deploy complete: $(date)"

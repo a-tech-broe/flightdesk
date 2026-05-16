@@ -148,6 +148,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 10m
+          envs: POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,SECRET_KEY,NEXT_PUBLIC_API_URL
           script: |
             # Wait for cloud-init to finish (no-op on subsequent deploys)
             cloud-init status --wait 2>/dev/null || true
@@ -164,9 +165,23 @@ jobs:
             git checkout dev
             git reset --hard origin/dev
 
-            # Create .env on first deploy — edit manually with real values after
-            [ -f .env ] || cp .env.example .env
+            # Write .env from GitHub secrets every deploy (keeps it in sync)
+            cat > .env <<EOF
+            POSTGRES_DB=${POSTGRES_DB}
+            POSTGRES_USER=${POSTGRES_USER}
+            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            SECRET_KEY=${SECRET_KEY}
+            ALGORITHM=HS256
+            ACCESS_TOKEN_EXPIRE_MINUTES=1440
+            NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+            EOF
 
             docker compose up -d --build
             docker system prune -f
             echo "Deploy complete: $(date)"
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}

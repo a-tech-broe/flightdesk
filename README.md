@@ -2,6 +2,8 @@
 
 Flight logging and aircraft scheduling for pilot training schools.
 
+Live: **https://flightadmins.com**
+
 ---
 
 ## Stack
@@ -12,9 +14,10 @@ Flight logging and aircraft scheduling for pilot training schools.
 | Backend API | FastAPI (Python 3.11) |
 | Database | PostgreSQL 15 |
 | Reverse Proxy | Nginx |
+| Load Balancer | AWS ALB + ACM (SSL) |
 | Containers | Docker + Docker Compose |
-| Hosting | AWS EC2 (Amazon Linux 2023) |
-| SSL | ACM / Let's Encrypt |
+| Hosting | AWS EC2 — Amazon Linux 2023, m5.xlarge |
+| IaC | Terraform |
 | CI/CD | GitHub Actions |
 
 ---
@@ -23,28 +26,35 @@ Flight logging and aircraft scheduling for pilot training schools.
 
 ```
 flightdesk/
-├── frontend/                  # Next.js app
+├── frontend/                      # Next.js app
 │   └── src/
 │       ├── app/
-│       │   ├── (auth)/        # Login, Register
-│       │   └── (protected)/   # Dashboard, Flights, Scheduling
-│       ├── components/        # Navbar, FlightForm, BookingCalendar
-│       ├── contexts/          # AuthContext (JWT)
-│       ├── lib/               # Axios API client
-│       └── types/             # Shared TypeScript types
-├── backend/                   # FastAPI app
+│       │   ├── (auth)/            # Login, Register
+│       │   └── (protected)/       # Dashboard, Flights, Scheduling
+│       ├── components/            # Navbar, FlightForm, BookingCalendar
+│       ├── contexts/              # AuthContext (JWT)
+│       ├── lib/                   # Axios API client
+│       └── types/                 # Shared TypeScript types
+├── backend/                       # FastAPI app
 │   └── app/
-│       ├── models/            # SQLAlchemy: User, Aircraft, Flight, Booking
-│       ├── schemas/           # Pydantic request/response schemas
-│       ├── routers/           # auth, flights, aircraft, bookings
-│       └── auth/              # JWT utils (python-jose + passlib)
+│       ├── models/                # SQLAlchemy: User, Aircraft, Flight, Booking
+│       ├── schemas/               # Pydantic request/response schemas
+│       ├── routers/               # auth, flights, aircraft, bookings
+│       └── auth/                  # JWT utils (python-jose + passlib)
 ├── nginx/
-│   ├── nginx.dev.conf         # HTTP only (local/dev)
-│   └── nginx.conf             # HTTPS production config
+│   ├── nginx.dev.conf             # HTTP only — used by docker-compose
+│   └── nginx.conf                 # HTTPS — for direct EC2 without ALB
 ├── infrastructure/
-│   └── setup.sh               # EC2 bootstrap script
+│   ├── terraform/                 # EC2, ALB, ACM, Route53, security groups
+│   │   ├── main.tf
+│   │   ├── lb.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── userdata.sh            # Instance bootstrap script
+│   └── setup.sh                   # Manual bootstrap (one-time)
 ├── .github/workflows/
-│   └── deploy.yml             # SSH deploy to EC2 on push to main
+│   ├── provision-dev.yml          # Terraform + deploy on push to dev
+│   └── deploy.yml                 # Deploy only on push to main
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -56,13 +66,17 @@ flightdesk/
 ```
 Internet
    ↓
-Route53 DNS
+Route53 (flightadmins.com)
    ↓
-Nginx (port 80/443)
-   ├── /api/*  → FastAPI (port 8000)
-   └── /*      → Next.js (port 3000)
+AWS ALB — HTTPS/443 (ACM cert) + HTTP/80 → 301 redirect
+   ↓
+EC2 — port 80
+   ↓
+Nginx (Docker)
+   ├── /api/*  → FastAPI  (port 8000)
+   └── /*      → Next.js  (port 3000)
                      ↓
-               PostgreSQL (internal)
+               PostgreSQL (port 5432, internal only)
 ```
 
 ---
@@ -71,104 +85,99 @@ Nginx (port 80/443)
 
 ### Authentication
 - Email/password registration and login
-- JWT tokens (24-hour expiry)
-- Protected routes — redirect to login if unauthenticated
+- JWT tokens with 24-hour expiry
+- Protected routes — redirect to `/login` if unauthenticated
 
 ### Flight Logging
-- Log flights with full logbook fields: total time, PIC, dual received, night, instrument, cross-country
+- Full logbook fields: total time, PIC, dual received, night, instrument, cross-country
 - Day and night landing counts
 - Departure/destination (ICAO codes), departure/arrival times, aircraft, notes
-- View full logbook as a sortable table with running totals
-- Edit and delete any of your flights
+- Logbook table with running hour totals
+- Add, edit, delete flights
 
 ### Aircraft Scheduling
-- FullCalendar week/month/day view showing all bookings
-- Click any time slot to create a booking
-- Click your own booking to edit or cancel it
-- Conflict detection — prevents double-booking the same aircraft
-- Shared calendar so all pilots see availability
+- FullCalendar week/month/day view
+- Click any time slot to book — conflict detection prevents double-booking
+- Click your own booking to edit or cancel
+- Shared calendar — all pilots see availability
 
 ### Dashboard
-- Total flight hours, total flights logged, upcoming booking count
-- Recent flights list
-- Upcoming bookings list
+- Total flight hours, total flights, upcoming booking count
+- Recent flights and upcoming bookings at a glance
 
 ---
 
 ## Running Locally
 
-**Prerequisites:** Docker + Docker Compose
+**Prerequisites:** Docker Desktop
 
 ```bash
-# 1. Clone
-git clone <repo-url>
-cd flightdesk
+git clone <repo-url> && cd flightdesk
 
-# 2. Set up environment
 cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD and generate a SECRET_KEY:
+# Fill in POSTGRES_PASSWORD and SECRET_KEY:
 #   openssl rand -hex 32
 
-# 3. Start everything
 docker compose up --build
-
-# App: http://localhost
+# App:      http://localhost
 # API docs: http://localhost/api/docs
 ```
 
 ---
 
-## Deploying to EC2
+## Infrastructure (Terraform)
 
-### 1. Provision the instance
-
-- Amazon Linux 2023, m5.xlarge, 30–50 GB gp3 storage
-- Open ports 22, 80, 443 in the security group
-
-### 2. Bootstrap the server
+Terraform manages: EC2 instance, ALB, target group, ACM certificate,
+Route53 records, and security groups. State is stored in S3 with DynamoDB locking.
 
 ```bash
-scp infrastructure/setup.sh ec2-user@<host>:~/
-ssh ec2-user@<host> "bash ~/setup.sh"
-# Log out and back in for Docker group permissions
+cd infrastructure/terraform
+
+terraform init \
+  -backend-config="bucket=<your-state-bucket>" \
+  -backend-config="region=<your-region>" \
+  -backend-config="dynamodb_table=<your-lock-table>"
+
+terraform apply \
+  -var="key_pair_name=<your-keypair>"
 ```
 
-### 3. Deploy the app
+---
 
-```bash
-ssh ec2-user@<host>
-git clone <repo-url> /app/flightdesk
-cp /app/flightdesk/.env.example /app/flightdesk/.env
-# Edit .env with production values
+## CI/CD
 
-# Add SSL certs (from ACM export or certbot):
-# /app/flightdesk/nginx/ssl/fullchain.pem
-# /app/flightdesk/nginx/ssl/privkey.pem
+### Branches
 
-# Swap to production nginx config in docker-compose.yml:
-# nginx.dev.conf → nginx.conf
+| Branch | Workflow | What it does |
+|---|---|---|
+| `dev` | `provision-dev.yml` | Terraform apply → EIP association → deploy app |
+| `main` | `deploy.yml` | Deploy app only |
 
-cd /app/flightdesk
-docker compose up -d
-```
+### GitHub Secrets Required
 
-### 4. Configure GitHub Actions CI/CD
-
-Add these secrets to the GitHub repo (Settings → Secrets):
-
-| Secret | Value |
+| Secret | Description |
 |---|---|
-| `EC2_HOST` | Public IP or domain of your EC2 instance |
-| `EC2_USERNAME` | `ec2-user` |
-| `EC2_SSH_KEY` | Private key for SSH access |
-
-Push to `main` to trigger an automatic deploy.
+| `AWS_ACCESS_KEY_ID` | IAM access key |
+| `AWS_SECRET_ACCESS_KEY` | IAM secret key |
+| `AWS_REGION` | e.g. `us-east-1` |
+| `TF_STATE_BUCKET` | S3 bucket for Terraform state |
+| `TF_LOCK_TABLE` | DynamoDB table for state locking |
+| `EC2_KEY_PAIR_NAME` | Existing EC2 key pair name |
+| `EC2_EIP_ALLOCATION_ID` | Existing EIP allocation ID (`eipalloc-…`) |
+| `EC2_EIP_HOST` | EIP public IP address |
+| `EC2_SSH_KEY` | Private key PEM content |
+| `GH_PAT` | GitHub PAT with `repo` scope (for git clone on EC2) |
+| `POSTGRES_DB` | e.g. `flightdesk` |
+| `POSTGRES_USER` | e.g. `flightdesk` |
+| `POSTGRES_PASSWORD` | Strong password |
+| `SECRET_KEY` | `openssl rand -hex 32` |
+| `NEXT_PUBLIC_API_URL` | `https://flightadmins.com/api` |
 
 ---
 
 ## API Reference
 
-All endpoints (except `/auth/register` and `/auth/login`) require:
+All endpoints except `/auth/register` and `/auth/login` require:
 ```
 Authorization: Bearer <token>
 ```
@@ -189,4 +198,4 @@ Authorization: Bearer <token>
 | PUT | `/bookings/{id}` | Update your booking |
 | DELETE | `/bookings/{id}` | Cancel your booking |
 
-Interactive docs available at `/api/docs` (Swagger UI).
+Interactive docs: **https://flightadmins.com/api/docs**

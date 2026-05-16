@@ -150,6 +150,14 @@ jobs:
             NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
             EOF
 
+            # Ensure buildx is installed and executable
+            mkdir -p ~/.docker/cli-plugins
+            BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest \
+              | grep '"tag_name"' | cut -d'"' -f4)
+            curl -fsSL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" \
+              -o ~/.docker/cli-plugins/docker-buildx
+            chmod +x ~/.docker/cli-plugins/docker-buildx
+
             docker compose up -d --build
             docker system prune -f
             echo "Deploy complete: $(date)"

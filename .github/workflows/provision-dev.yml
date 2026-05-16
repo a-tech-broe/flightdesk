@@ -1,0 +1,187 @@
+name: Provision & Deploy (dev)
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  provision:
+    name: Terraform — EC2
+    runs-on: ubuntu-latest
+    outputs:
+      public_ip: ${{ steps.output.outputs.public_ip }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.0"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+
+      - name: Import existing resources (if not in state)
+        working-directory: infrastructure/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
+          TF_VAR_eip_allocation_id: ${{ secrets.EC2_EIP_ALLOCATION_ID }}
+        run: |
+          in_state() { terraform state list 2>/dev/null | grep -qx "$1"; }
+
+          import_if_missing() {
+            local addr=$1 id=$2
+            if in_state "$addr"; then
+              echo "SKIP: $addr (already in state)"
+            else
+              echo "IMPORT: $addr => $id"
+              terraform import "$addr" "$id"
+            fi
+          }
+
+          # Resolve default VPC for precise SG filtering
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=isDefault,Values=true" \
+            --query 'Vpcs[0].VpcId' --output text)
+          echo "Default VPC: $VPC_ID"
+
+          # EC2 security group
+          SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=group-name,Values=flightdesk-dev" "Name=vpc-id,Values=$VPC_ID" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          echo "EC2 SG: $SG_ID"
+          if [[ "$SG_ID" =~ ^sg- ]]; then
+            import_if_missing aws_security_group.flightdesk_dev "$SG_ID"
+          fi
+
+          # ALB security group
+          ALB_SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=group-name,Values=flightdesk-alb-dev" "Name=vpc-id,Values=$VPC_ID" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          echo "ALB SG: $ALB_SG_ID"
+          if [[ "$ALB_SG_ID" =~ ^sg- ]]; then
+            import_if_missing aws_security_group.alb "$ALB_SG_ID"
+          fi
+
+          # EC2 instance
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=flightdesk-dev" \
+                      "Name=instance-state-name,Values=running,stopped,pending" \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          echo "Instance: $INSTANCE_ID"
+          if [[ "$INSTANCE_ID" =~ ^i- ]]; then
+            import_if_missing aws_instance.flightdesk_dev "$INSTANCE_ID"
+          fi
+
+          # EIP association (import by allocation ID; || true because it may not exist yet)
+          if ! in_state aws_eip_association.flightdesk_dev; then
+            echo "IMPORT: aws_eip_association.flightdesk_dev => ${{ secrets.EC2_EIP_ALLOCATION_ID }}"
+            terraform import aws_eip_association.flightdesk_dev \
+              "${{ secrets.EC2_EIP_ALLOCATION_ID }}" || true
+          else
+            echo "SKIP: aws_eip_association.flightdesk_dev (already in state)"
+          fi
+
+          # ALB
+          ALB_ARN=$(aws elbv2 describe-load-balancers \
+            --names flightdesk-dev \
+            --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "")
+          echo "ALB: $ALB_ARN"
+          if [[ "$ALB_ARN" =~ ^arn: ]]; then
+            import_if_missing aws_lb.flightdesk "$ALB_ARN"
+          fi
+
+          # Target group
+          TG_ARN=$(aws elbv2 describe-target-groups \
+            --names flightdesk-dev \
+            --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "")
+          echo "TG: $TG_ARN"
+          if [[ "$TG_ARN" =~ ^arn: ]]; then
+            import_if_missing aws_lb_target_group.flightdesk "$TG_ARN"
+          fi
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
+          TF_VAR_eip_allocation_id: ${{ secrets.EC2_EIP_ALLOCATION_ID }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
+          TF_VAR_eip_allocation_id: ${{ secrets.EC2_EIP_ALLOCATION_ID }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get public IP
+        id: output
+        working-directory: infrastructure/terraform
+        run: echo "public_ip=$(terraform output -raw public_ip)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy app
+    runs-on: ubuntu-latest
+    needs: provision
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_EIP_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          envs: POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,SECRET_KEY,NEXT_PUBLIC_API_URL
+          script: |
+            # Wait for cloud-init to finish (no-op on subsequent deploys)
+            cloud-init status --wait 2>/dev/null || true
+
+            # First-time clone
+            if [ ! -d /app/flightdesk/.git ]; then
+              git clone \
+                https://oauth2:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git \
+                /app/flightdesk
+            fi
+
+            cd /app/flightdesk
+            git fetch origin
+            git checkout dev
+            git reset --hard origin/dev
+
+            # Write .env from GitHub secrets every deploy (keeps it in sync)
+            cat > .env <<EOF
+            POSTGRES_DB=${POSTGRES_DB}
+            POSTGRES_USER=${POSTGRES_USER}
+            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            SECRET_KEY=${SECRET_KEY}
+            ALGORITHM=HS256
+            ACCESS_TOKEN_EXPIRE_MINUTES=1440
+            NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+            EOF
+
+            docker compose up -d --build
+            docker system prune -f
+            echo "Deploy complete: $(date)"
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}

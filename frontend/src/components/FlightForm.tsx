@@ -28,12 +28,12 @@ const defaultForm = {
   notes: '',
 };
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white';
+const inputCls = 'w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-gray-800 text-slate-800 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>
+      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">{label}</label>
       {children}
     </div>
   );
@@ -42,10 +42,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <span className="flex-1 h-px bg-gray-100" />
+      <h3 className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <span className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
         {title}
-        <span className="flex-1 h-px bg-gray-100" />
+        <span className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
       </h3>
       {children}
     </div>
@@ -106,7 +106,7 @@ export default function FlightForm({ initialData, flightId }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+        <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl px-4 py-3 text-sm">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
           </svg>
@@ -200,7 +200,7 @@ export default function FlightForm({ initialData, flightId }: Props) {
         <button
           type="button"
           onClick={() => router.push('/flights')}
-          className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:border-gray-300 hover:bg-gray-50 transition-colors"
+          className="px-6 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 font-semibold hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         >
           Cancel
         </button>

@@ -40,11 +40,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-slate-50">
+      <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 dark:bg-gray-950 transition-colors">
         <div className="w-full max-w-md">
           <div className="lg:hidden text-center mb-8">
             <span className="text-3xl">✈</span>
-            <h1 className="text-2xl font-bold text-slate-800 mt-2">FlightDesk</h1>
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-2">FlightDesk</h1>
           </div>
           {children}
         </div>

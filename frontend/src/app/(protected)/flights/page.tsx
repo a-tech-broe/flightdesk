@@ -35,8 +35,8 @@ export default function FlightsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Flight Log</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Flight Log</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
             {flights.length} {flights.length === 1 ? 'entry' : 'entries'} · {totalHours.toFixed(1)} total hours
           </p>
         </div>
@@ -52,10 +52,10 @@ export default function FlightsPage() {
       </div>
 
       {flights.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-16 text-center">
           <div className="text-5xl mb-4">✈</div>
-          <h3 className="font-semibold text-slate-700 mb-1">No flights logged yet</h3>
-          <p className="text-gray-400 text-sm mb-4">Start building your logbook today.</p>
+          <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-1">No flights logged yet</h3>
+          <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">Start building your logbook today.</p>
           <Link
             href="/flights/new"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
@@ -66,39 +66,39 @@ export default function FlightsPage() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 border-b border-gray-100">
+                <tr className="bg-slate-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                   {['Date', 'Route', 'Total', 'PIC', 'Night', 'Inst.', 'Ldg', ''].map((h) => (
-                    <th key={h} className={`px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide ${h === '' || h === 'Total' || h === 'PIC' || h === 'Night' || h === 'Inst.' || h === 'Ldg' ? 'text-right' : 'text-left'}`}>
+                    <th key={h} className={`px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide ${h === '' || h === 'Total' || h === 'PIC' || h === 'Night' || h === 'Inst.' || h === 'Ldg' ? 'text-right' : 'text-left'}`}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                 {flights.map((f) => (
-                  <tr key={f.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">
+                  <tr key={f.id} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group">
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
                       {format(new Date(f.date), 'MMM d, yyyy')}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-semibold text-slate-800">{f.departure}</span>
-                      <span className="text-gray-400 mx-1.5">→</span>
-                      <span className="font-semibold text-slate-800">{f.destination}</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">{f.departure}</span>
+                      <span className="text-gray-400 dark:text-gray-500 mx-1.5">→</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">{f.destination}</span>
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-blue-600">{f.total_time.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{f.pic_time.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{f.night.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{f.instrument.toFixed(1)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{f.day_landings + f.night_landings}</td>
+                    <td className="px-4 py-3 text-right font-bold text-blue-600 dark:text-blue-400">{f.total_time.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{f.pic_time.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{f.night.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{f.instrument.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{f.day_landings + f.night_landings}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link href={`/flights/${f.id}/edit`} className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded-lg hover:bg-blue-50">
+                        <Link href={`/flights/${f.id}/edit`} className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30">
                           Edit
                         </Link>
-                        <button onClick={() => handleDelete(f.id)} className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded-lg hover:bg-red-50">
+                        <button onClick={() => handleDelete(f.id)} className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                           Delete
                         </button>
                       </div>
@@ -107,15 +107,15 @@ export default function FlightsPage() {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-slate-50 border-t border-gray-200">
-                  <td className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide" colSpan={2}>
+                <tr className="bg-slate-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                  <td className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide" colSpan={2}>
                     Totals
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-blue-700">{totalHours.toFixed(1)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-700">{flights.reduce((s, f) => s + f.pic_time, 0).toFixed(1)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-700">{flights.reduce((s, f) => s + f.night, 0).toFixed(1)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-700">{flights.reduce((s, f) => s + f.instrument, 0).toFixed(1)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-700">{flights.reduce((s, f) => s + f.day_landings + f.night_landings, 0)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-blue-700 dark:text-blue-400">{totalHours.toFixed(1)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{flights.reduce((s, f) => s + f.pic_time, 0).toFixed(1)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{flights.reduce((s, f) => s + f.night, 0).toFixed(1)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{flights.reduce((s, f) => s + f.instrument, 0).toFixed(1)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{flights.reduce((s, f) => s + f.day_landings + f.night_landings, 0)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -125,15 +125,15 @@ export default function FlightsPage() {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {flights.map((f) => (
-              <div key={f.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <div key={f.id} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-bold text-slate-800">
+                    <p className="font-bold text-slate-800 dark:text-slate-100">
                       {f.departure} → {f.destination}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{format(new Date(f.date), 'MMM d, yyyy')}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{format(new Date(f.date), 'MMM d, yyyy')}</p>
                   </div>
-                  <span className="text-lg font-bold text-blue-600">{f.total_time.toFixed(1)}h</span>
+                  <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{f.total_time.toFixed(1)}h</span>
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center mb-3">
                   {[
@@ -142,17 +142,17 @@ export default function FlightsPage() {
                     { label: 'Inst.', value: f.instrument },
                     { label: 'Ldg', value: f.day_landings + f.night_landings, fixed: 0 },
                   ].map(({ label, value, fixed = 1 }) => (
-                    <div key={label} className="bg-slate-50 rounded-lg py-2">
-                      <p className="text-xs text-gray-400">{label}</p>
-                      <p className="text-sm font-semibold text-slate-700">{typeof value === 'number' ? (fixed === 0 ? value : value.toFixed(1)) : value}</p>
+                    <div key={label} className="bg-slate-50 dark:bg-gray-800 rounded-lg py-2">
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{label}</p>
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{typeof value === 'number' ? (fixed === 0 ? value : value.toFixed(1)) : value}</p>
                     </div>
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <Link href={`/flights/${f.id}/edit`} className="flex-1 text-center text-xs text-blue-600 font-semibold py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors">
+                  <Link href={`/flights/${f.id}/edit`} className="flex-1 text-center text-xs text-blue-600 font-semibold py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
                     Edit
                   </Link>
-                  <button onClick={() => handleDelete(f.id)} className="flex-1 text-xs text-red-500 font-semibold py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors">
+                  <button onClick={() => handleDelete(f.id)} className="flex-1 text-xs text-red-500 font-semibold py-1.5 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                     Delete
                   </button>
                 </div>

@@ -29,15 +29,17 @@ export default function RegisterPage() {
     }
   };
 
+  const inputCls = 'w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 text-slate-800 dark:text-slate-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition';
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-1">Create account</h1>
-      <p className="text-gray-500 text-sm mb-8">Start logging your flights today</p>
+      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">Create account</h1>
+      <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Start logging your flights today</p>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+            <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl px-4 py-3 text-sm">
               <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
@@ -45,29 +47,29 @@ export default function RegisterPage() {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full name</label>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className={inputCls}
               placeholder="Jane Smith"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email address</label>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className={inputCls}
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Password</label>
             <input
               type="password"
               required
@@ -75,7 +77,7 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className={inputCls}
               placeholder="At least 8 characters"
             />
           </div>
@@ -97,7 +99,7 @@ export default function RegisterPage() {
         </form>
       </div>
 
-      <p className="text-center text-sm text-gray-500 mt-6">
+      <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
         Already have an account?{' '}
         <Link href="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
           Sign in

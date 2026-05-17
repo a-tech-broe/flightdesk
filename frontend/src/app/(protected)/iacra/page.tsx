@@ -351,8 +351,8 @@ export default function IacraPage() {
         </div>
 
         {/* Requirements table */}
-        <div className="overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
+          <table className="w-full text-sm min-w-[480px]">
             <thead>
               <tr className="bg-slate-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">IACRA / 8710-1 Field</th>

@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Recent activity strip */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Last 30 Days', value: last30.toFixed(1) + 'h' },
           { label: 'Last 90 Days', value: last90.toFixed(1) + 'h' },

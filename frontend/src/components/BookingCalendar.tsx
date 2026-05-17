@@ -14,6 +14,9 @@ export default function BookingCalendar() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [calView] = useState<string>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 640 ? 'timeGridDay' : 'timeGridWeek'
+  );
   const [showModal, setShowModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [form, setForm] = useState({
@@ -112,7 +115,7 @@ export default function BookingCalendar() {
     <div>
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="timeGridWeek"
+        initialView={calView}
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
@@ -176,7 +179,7 @@ export default function BookingCalendar() {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Start *</label>
                   <input

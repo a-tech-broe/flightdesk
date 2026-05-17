@@ -37,7 +37,8 @@ export default function SchedulingPage() {
       setForm({ tail_number: '', make: '', model: '', year: '', category: '', aircraft_class: '' });
       fetchAircraft();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : null;
       setError(msg || 'Failed to add aircraft.');
     } finally {
       setSaving(false);

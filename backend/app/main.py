@@ -6,7 +6,7 @@ from .routers import auth, flights, aircraft, bookings
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="FlightDesk API", version="1.0.0")
+app = FastAPI(title="FlightDesk API", version="1.0.0", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,

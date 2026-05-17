@@ -10,12 +10,12 @@ from ..auth.utils import get_current_user
 router = APIRouter(prefix="/flights", tags=["flights"])
 
 
-@router.get("/", response_model=List[FlightResponse])
+@router.get("", response_model=List[FlightResponse])
 def list_flights(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Flight).filter(Flight.user_id == current_user.id).order_by(Flight.date.desc()).all()
 
 
-@router.post("/", response_model=FlightResponse, status_code=201)
+@router.post("", response_model=FlightResponse, status_code=201)
 def create_flight(flight: FlightCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_flight = Flight(**flight.model_dump(), user_id=current_user.id)
     db.add(db_flight)

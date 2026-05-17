@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 
@@ -14,10 +14,16 @@ class UserLogin(BaseModel):
     password: str
 
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    bfr_date: Optional[date] = None
+
+
 class UserResponse(BaseModel):
     id: int
     email: str
     full_name: Optional[str]
+    bfr_date: Optional[date]
     created_at: datetime
 
     model_config = {"from_attributes": True}

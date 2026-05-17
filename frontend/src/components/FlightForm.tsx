@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Flight, Aircraft } from '@/types';
+import WeatherWidget from '@/components/WeatherWidget';
 
 interface Props {
   initialData?: Partial<Flight>;
@@ -25,6 +26,7 @@ const defaultForm = {
   cross_country: '',
   day_landings: '',
   night_landings: '',
+  instrument_approaches: '',
   notes: '',
 };
 
@@ -87,6 +89,7 @@ export default function FlightForm({ initialData, flightId }: Props) {
         cross_country: Number(form.cross_country) || 0,
         day_landings: Number(form.day_landings) || 0,
         night_landings: Number(form.night_landings) || 0,
+        instrument_approaches: form.instrument_approaches ? Number(form.instrument_approaches) : 0,
         notes: form.notes || null,
       };
       if (flightId) {
@@ -140,6 +143,12 @@ export default function FlightForm({ initialData, flightId }: Props) {
             <input type="time" value={form.arrival_time} onChange={set('arrival_time')} className={inputCls} />
           </Field>
         </div>
+        {/* Live weather widget */}
+        {(form.departure.length >= 3 || form.destination.length >= 3) && (
+          <div className="mt-3">
+            <WeatherWidget departure={form.departure} destination={form.destination} />
+          </div>
+        )}
       </Section>
 
       <Section title="Hours">
@@ -168,13 +177,16 @@ export default function FlightForm({ initialData, flightId }: Props) {
         </div>
       </Section>
 
-      <Section title="Landings">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Day">
+      <Section title="Landings & Approaches">
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="Day Ldg">
             <input type="number" min="0" value={form.day_landings} onChange={set('day_landings')} className={inputCls} placeholder="0" />
           </Field>
-          <Field label="Night">
+          <Field label="Night Ldg">
             <input type="number" min="0" value={form.night_landings} onChange={set('night_landings')} className={inputCls} placeholder="0" />
+          </Field>
+          <Field label="Inst. Approaches">
+            <input type="number" min="0" value={form.instrument_approaches} onChange={set('instrument_approaches')} className={inputCls} placeholder="0" />
           </Field>
         </div>
       </Section>
@@ -226,6 +238,7 @@ function toFormValues(data?: Partial<Flight>): Partial<typeof defaultForm> {
     cross_country: data.cross_country?.toString() || '',
     day_landings: data.day_landings?.toString() || '',
     night_landings: data.night_landings?.toString() || '',
+    instrument_approaches: data.instrument_approaches?.toString() || '',
     notes: data.notes || '',
   };
 }

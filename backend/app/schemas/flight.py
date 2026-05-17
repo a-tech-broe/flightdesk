@@ -18,6 +18,7 @@ class FlightCreate(BaseModel):
     cross_country: float = 0.0
     day_landings: int = 0
     night_landings: int = 0
+    instrument_approaches: Optional[int] = 0
     notes: Optional[str] = None
 
 

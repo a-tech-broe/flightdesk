@@ -26,6 +26,7 @@ class Flight(Base):
 
     day_landings = Column(Integer, default=0)
     night_landings = Column(Integer, default=0)
+    instrument_approaches = Column(Integer, default=0, nullable=True)
 
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

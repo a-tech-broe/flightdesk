@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.user import User
-from ..schemas.user import UserCreate, UserLogin, UserResponse, Token
+from ..schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, Token
 from ..auth.utils import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -34,4 +34,13 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(body: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(current_user, key, value)
+    db.commit()
+    db.refresh(current_user)
     return current_user

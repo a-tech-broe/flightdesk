@@ -28,16 +28,29 @@ const defaultForm = {
   notes: '',
 };
 
+const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white';
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>
       {children}
     </div>
   );
 }
 
-const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <span className="flex-1 h-px bg-gray-100" />
+        {title}
+        <span className="flex-1 h-px bg-gray-100" />
+      </h3>
+      {children}
+    </div>
+  );
+}
 
 export default function FlightForm({ initialData, flightId }: Props) {
   const router = useRouter();
@@ -50,8 +63,9 @@ export default function FlightForm({ initialData, flightId }: Props) {
     api.get('/aircraft').then((r) => setAircraft(r.data));
   }, []);
 
-  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const set = (field: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setForm((p) => ({ ...p, [field]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +89,6 @@ export default function FlightForm({ initialData, flightId }: Props) {
         night_landings: Number(form.night_landings) || 0,
         notes: form.notes || null,
       };
-
       if (flightId) {
         await api.put(`/flights/${flightId}`, payload);
       } else {
@@ -93,117 +106,101 @@ export default function FlightForm({ initialData, flightId }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+          {error}
+        </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Date *">
-          <input type="date" required value={form.date} onChange={set('date')} className={inputCls} />
-        </Field>
-        <Field label="Aircraft">
-          <select value={form.aircraft_id} onChange={set('aircraft_id')} className={inputCls}>
-            <option value="">Select aircraft</option>
-            {aircraft.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.tail_number} — {a.make} {a.model}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      <Section title="Flight Info">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Date *">
+            <input type="date" required value={form.date} onChange={set('date')} className={inputCls} />
+          </Field>
+          <Field label="Aircraft">
+            <select value={form.aircraft_id} onChange={set('aircraft_id')} className={inputCls}>
+              <option value="">Select aircraft</option>
+              {aircraft.map((a) => (
+                <option key={a.id} value={a.id}>{a.tail_number} — {a.make} {a.model}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Departure *">
+            <input type="text" required maxLength={4} placeholder="KLAX" value={form.departure} onChange={set('departure')} className={`${inputCls} uppercase`} />
+          </Field>
+          <Field label="Destination *">
+            <input type="text" required maxLength={4} placeholder="KSFO" value={form.destination} onChange={set('destination')} className={`${inputCls} uppercase`} />
+          </Field>
+          <Field label="Off Block">
+            <input type="time" value={form.departure_time} onChange={set('departure_time')} className={inputCls} />
+          </Field>
+          <Field label="On Block">
+            <input type="time" value={form.arrival_time} onChange={set('arrival_time')} className={inputCls} />
+          </Field>
+        </div>
+      </Section>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Departure *">
-          <input
-            type="text"
-            required
-            maxLength={4}
-            placeholder="KLAX"
-            value={form.departure}
-            onChange={set('departure')}
-            className={`${inputCls} uppercase`}
-          />
-        </Field>
-        <Field label="Destination *">
-          <input
-            type="text"
-            required
-            maxLength={4}
-            placeholder="KSFO"
-            value={form.destination}
-            onChange={set('destination')}
-            className={`${inputCls} uppercase`}
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Departure Time">
-          <input type="time" value={form.departure_time} onChange={set('departure_time')} className={inputCls} />
-        </Field>
-        <Field label="Arrival Time">
-          <input type="time" value={form.arrival_time} onChange={set('arrival_time')} className={inputCls} />
-        </Field>
-      </div>
-
-      <div className="border-t pt-4">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Flight Hours</p>
-        <div className="grid grid-cols-3 gap-4">
+      <Section title="Hours">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
-            ['total_time', 'Total Time *'],
-            ['pic_time', 'PIC'],
-            ['dual_received', 'Dual Received'],
-            ['night', 'Night'],
-            ['instrument', 'Instrument'],
-            ['cross_country', 'Cross Country'],
-          ].map(([field, label]) => (
-            <Field key={field} label={label}>
+            ['total_time', 'Total Time *', true],
+            ['pic_time', 'PIC', false],
+            ['dual_received', 'Dual Received', false],
+            ['night', 'Night', false],
+            ['instrument', 'Instrument', false],
+            ['cross_country', 'Cross Country', false],
+          ].map(([field, label, required]) => (
+            <Field key={field as string} label={label as string}>
               <input
                 type="number"
                 step="0.1"
                 min="0"
-                required={field === 'total_time'}
+                required={!!required}
                 value={form[field as keyof typeof form]}
-                onChange={set(field)}
+                onChange={set(field as string)}
                 className={inputCls}
                 placeholder="0.0"
               />
             </Field>
           ))}
         </div>
-      </div>
+      </Section>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Day Landings">
-          <input type="number" min="0" value={form.day_landings} onChange={set('day_landings')} className={inputCls} placeholder="0" />
-        </Field>
-        <Field label="Night Landings">
-          <input type="number" min="0" value={form.night_landings} onChange={set('night_landings')} className={inputCls} placeholder="0" />
-        </Field>
-      </div>
+      <Section title="Landings">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Day">
+            <input type="number" min="0" value={form.day_landings} onChange={set('day_landings')} className={inputCls} placeholder="0" />
+          </Field>
+          <Field label="Night">
+            <input type="number" min="0" value={form.night_landings} onChange={set('night_landings')} className={inputCls} placeholder="0" />
+          </Field>
+        </div>
+      </Section>
 
-      <Field label="Notes">
-        <textarea
-          rows={3}
-          value={form.notes}
-          onChange={set('notes')}
-          className={`${inputCls} resize-none`}
-          placeholder="Remarks, conditions, endorsements..."
-        />
+      <Field label="Remarks">
+        <textarea rows={3} value={form.notes} onChange={set('notes')} className={`${inputCls} resize-none`} placeholder="Conditions, endorsements, remarks..." />
       </Field>
 
       <div className="flex gap-3 pt-2">
         <button
           type="submit"
           disabled={saving}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-sm"
         >
+          {saving && (
+            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
           {saving ? 'Saving...' : flightId ? 'Update Flight' : 'Log Flight'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/flights')}
-          className="text-gray-600 hover:text-gray-800 font-medium px-6 py-2.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+          className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:border-gray-300 hover:bg-gray-50 transition-colors"
         >
           Cancel
         </button>

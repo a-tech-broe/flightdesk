@@ -2,6 +2,7 @@ export interface User {
   id: number;
   email: string;
   full_name: string | null;
+  bfr_date: string | null;
   created_at: string;
 }
 
@@ -33,6 +34,7 @@ export interface Flight {
   cross_country: number;
   day_landings: number;
   night_landings: number;
+  instrument_approaches: number | null;
   notes: string | null;
   created_at: string;
 }

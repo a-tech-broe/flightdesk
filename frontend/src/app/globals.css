@@ -1,3 +1,58 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* FullCalendar dark mode overrides */
+.dark .fc {
+  --fc-border-color: rgb(55, 65, 81);
+  --fc-button-bg-color: rgb(37, 99, 235);
+  --fc-button-border-color: rgb(37, 99, 235);
+  --fc-button-text-color: #fff;
+  --fc-button-hover-bg-color: rgb(29, 78, 216);
+  --fc-button-hover-border-color: rgb(29, 78, 216);
+  --fc-button-active-bg-color: rgb(30, 64, 175);
+  --fc-button-active-border-color: rgb(30, 64, 175);
+  --fc-page-bg-color: rgb(17, 24, 39);
+  --fc-neutral-bg-color: rgb(31, 41, 55);
+  --fc-today-bg-color: rgba(37, 99, 235, 0.08);
+  --fc-list-event-hover-bg-color: rgb(55, 65, 81);
+}
+
+.dark .fc-toolbar-title {
+  color: rgb(226, 232, 240);
+}
+
+.dark .fc-col-header-cell-cushion,
+.dark .fc-daygrid-day-number,
+.dark .fc-timegrid-axis-cushion,
+.dark .fc-timegrid-slot-label-cushion {
+  color: rgb(148, 163, 184);
+}
+
+.dark .fc-col-header-cell {
+  background-color: rgb(31, 41, 55);
+}
+
+.dark .fc-timegrid-slot,
+.dark .fc-daygrid-day {
+  background-color: rgb(17, 24, 39);
+}
+
+.dark .fc .fc-button-primary:not(:disabled).fc-button-active,
+.dark .fc .fc-button-primary:not(:disabled):active {
+  background-color: rgb(30, 64, 175);
+  border-color: rgb(30, 64, 175);
+}
+
+.dark .fc-scrollgrid {
+  border-color: rgb(55, 65, 81);
+}
+
+.dark .fc-scrollgrid td,
+.dark .fc-scrollgrid th {
+  border-color: rgb(55, 65, 81);
+}
+
+.dark .fc-event {
+  border-color: transparent;
+}

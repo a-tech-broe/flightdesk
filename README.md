@@ -153,7 +153,12 @@ Since IACRA has no public API, FlightDesk generates a pre-filled 8710-1 summary 
 
 ### UI
 - Light and dark mode with system preference detection and no flash on load
-- Fully responsive — desktop table views collapse to mobile card layouts
+- Fully responsive — every page adapts from 320px phones to wide desktop monitors
+  - Logbook: desktop table collapses to per-flight cards on mobile
+  - Scheduling calendar: defaults to single-day view on narrow screens, week view on desktop
+  - Flight form, booking modal, and aircraft modal: multi-column grids stack to single column on mobile
+  - Route map: responsive height (256px → 384px → 520px across breakpoints)
+  - IACRA requirements table: horizontal scroll on small screens
 - Persistent theme preference saved to localStorage
 
 ---

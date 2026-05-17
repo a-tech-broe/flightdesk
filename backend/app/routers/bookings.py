@@ -10,12 +10,12 @@ from ..auth.utils import get_current_user
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 
-@router.get("/", response_model=List[BookingResponse])
+@router.get("", response_model=List[BookingResponse])
 def list_bookings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Booking).order_by(Booking.start_time.asc()).all()
 
 
-@router.post("/", response_model=BookingResponse, status_code=201)
+@router.post("", response_model=BookingResponse, status_code=201)
 def create_booking(booking: BookingCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     conflict = db.query(Booking).filter(
         Booking.aircraft_id == booking.aircraft_id,

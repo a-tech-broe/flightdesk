@@ -10,12 +10,12 @@ from ..auth.utils import get_current_user
 router = APIRouter(prefix="/aircraft", tags=["aircraft"])
 
 
-@router.get("/", response_model=List[AircraftResponse])
+@router.get("", response_model=List[AircraftResponse])
 def list_aircraft(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Aircraft).order_by(Aircraft.tail_number).all()
 
 
-@router.post("/", response_model=AircraftResponse, status_code=201)
+@router.post("", response_model=AircraftResponse, status_code=201)
 def create_aircraft(aircraft: AircraftCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if db.query(Aircraft).filter(Aircraft.tail_number == aircraft.tail_number).first():
         raise HTTPException(status_code=400, detail="Aircraft with this tail number already exists")

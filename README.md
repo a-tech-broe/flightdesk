@@ -1,6 +1,6 @@
 # FlightDesk
 
-Flight logging and aircraft scheduling for pilot training schools.
+Flight logging, scheduling, and currency tracking for pilot training schools.
 
 Live: **https://flightadmins.com**
 
@@ -30,9 +30,9 @@ flightdesk/
 │   └── src/
 │       ├── app/
 │       │   ├── (auth)/            # Login, Register
-│       │   └── (protected)/       # Dashboard, Flights, Scheduling
-│       ├── components/            # Navbar, FlightForm, BookingCalendar
-│       ├── contexts/              # AuthContext (JWT)
+│       │   └── (protected)/       # Dashboard, Logbook, Currency, Analytics, Map, Scheduling
+│       ├── components/            # Navbar, FlightForm, BookingCalendar, FlightMap, WeatherWidget
+│       ├── contexts/              # AuthContext (JWT), ThemeContext (dark mode)
 │       ├── lib/                   # Axios API client
 │       └── types/                 # Shared TypeScript types
 ├── backend/                       # FastAPI app
@@ -88,22 +88,73 @@ Nginx (Docker)
 - JWT tokens with 24-hour expiry
 - Protected routes — redirect to `/login` if unauthenticated
 
-### Flight Logging
-- Full logbook fields: total time, PIC, dual received, night, instrument, cross-country
-- Day and night landing counts
-- Departure/destination (ICAO codes), departure/arrival times, aircraft, notes
-- Logbook table with running hour totals
+### Flight Logbook
+- Full FAA logbook fields: total time, PIC, dual received, night, instrument, cross-country
+- Day landings, night landings, and instrument approaches per flight
+- Departure/destination (ICAO codes), block times, aircraft, remarks
+- Responsive table (desktop) and card layout (mobile) with running totals
 - Add, edit, delete flights
+- **PDF export** — one-click download of a formatted FAA-style logbook (landscape, with totals row)
+
+### FAA Currency Tracker
+Computes all active currency requirements directly from your logbook:
+
+| Requirement | Rule | What's tracked |
+|---|---|---|
+| Day passenger | FAR 61.57(a) | 3 T&Ls in preceding 90 days |
+| Night passenger | FAR 61.57(b) | 3 full-stop night landings in preceding 90 days |
+| Instrument | FAR 61.57(c) | 6 approaches in preceding 6 calendar months |
+| Flight Review | FAR 61.56 | Every 24 calendar months (user-entered date) |
+
+- Green / amber / red status badges with days-remaining callouts
+- Shows exactly what you need to regain currency
+- Set and persist your last BFR date from the UI
+
+### Analytics Dashboard
+All computed from existing logbook data — no extra input needed:
+- **Hours per month** bar chart (last 12 months)
+- **Hours breakdown** donut (PIC, Night, IFR, Cross-Country, Dual)
+- **Top airports** visited with proportional bar chart
+- **Rating progress** bars toward PPL (40h), IFR (50h), CPL (250h), ATP (1500h)
+- 30-day / 90-day / 12-month activity summary
+
+### Route Map
+- Interactive map (Leaflet + OpenStreetMap — no API key required)
+- Airport coordinates fetched live from aviationweather.gov
+- Every flight plotted as a route line; airports as circles scaled by visit frequency
+- Click any airport for name and operation count
+- Stats: airports visited, unique routes, furthest flight (NM), most-visited airport
+
+### Live Weather (on the flight log form)
+- Auto-fetches METAR from aviationweather.gov when you type a departure/destination
+- Color-coded flight category badge: VFR / MVFR / IFR / LIFR
+- Shows wind, visibility, temperature, and raw METAR string
+- Free, no API key — uses the FAA public weather API
 
 ### Aircraft Scheduling
 - FullCalendar week/month/day view
 - Click any time slot to book — conflict detection prevents double-booking
 - Click your own booking to edit or cancel
+- Fleet strip showing all registered aircraft
 - Shared calendar — all pilots see availability
 
 ### Dashboard
 - Total flight hours, total flights, upcoming booking count
 - Recent flights and upcoming bookings at a glance
+
+### IACRA Export (FAA Form 8710-1)
+Since IACRA has no public API, FlightDesk generates a pre-filled 8710-1 summary PDF that pilots carry into their IACRA session:
+- Select the certificate/rating being applied for: PPL, IFR, CPL, CFI, or ATP
+- Filter by time period (all time, last 5 years, last 2 years)
+- See every IACRA field mapped to your logbook totals with met/not-met status
+- Download a formatted PDF with all hour breakdowns, deficits, and a full logbook summary
+- Includes solo and simulated instrument fields (tracked per-flight)
+- Disclaimer reminding pilots to have their CFI review before submitting
+
+### UI
+- Light and dark mode with system preference detection and no flash on load
+- Fully responsive — desktop table views collapse to mobile card layouts
+- Persistent theme preference saved to localStorage
 
 ---
 
@@ -186,7 +237,8 @@ Authorization: Bearer <token>
 |---|---|---|
 | POST | `/auth/register` | Create account |
 | POST | `/auth/login` | Get JWT token |
-| GET | `/auth/me` | Current user |
+| GET | `/auth/me` | Current user profile |
+| PATCH | `/auth/me` | Update profile (name, BFR date) |
 | GET | `/flights` | List your flights |
 | POST | `/flights` | Log a flight |
 | PUT | `/flights/{id}` | Update a flight |

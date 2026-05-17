@@ -27,6 +27,8 @@ const defaultForm = {
   day_landings: '',
   night_landings: '',
   instrument_approaches: '',
+  solo: '',
+  simulated_instrument: '',
   notes: '',
 };
 
@@ -90,6 +92,8 @@ export default function FlightForm({ initialData, flightId }: Props) {
         day_landings: Number(form.day_landings) || 0,
         night_landings: Number(form.night_landings) || 0,
         instrument_approaches: form.instrument_approaches ? Number(form.instrument_approaches) : 0,
+        solo: Number(form.solo) || 0,
+        simulated_instrument: Number(form.simulated_instrument) || 0,
         notes: form.notes || null,
       };
       if (flightId) {
@@ -191,6 +195,17 @@ export default function FlightForm({ initialData, flightId }: Props) {
         </div>
       </Section>
 
+      <Section title="Solo & Simulated Instrument">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Solo">
+            <input type="number" step="0.1" min="0" value={form.solo} onChange={set('solo')} className={inputCls} placeholder="0.0" />
+          </Field>
+          <Field label="Simulated Instrument (Hood)">
+            <input type="number" step="0.1" min="0" value={form.simulated_instrument} onChange={set('simulated_instrument')} className={inputCls} placeholder="0.0" />
+          </Field>
+        </div>
+      </Section>
+
       <Field label="Remarks">
         <textarea rows={3} value={form.notes} onChange={set('notes')} className={`${inputCls} resize-none`} placeholder="Conditions, endorsements, remarks..." />
       </Field>
@@ -239,6 +254,8 @@ function toFormValues(data?: Partial<Flight>): Partial<typeof defaultForm> {
     day_landings: data.day_landings?.toString() || '',
     night_landings: data.night_landings?.toString() || '',
     instrument_approaches: data.instrument_approaches?.toString() || '',
+    solo: data.solo?.toString() || '',
+    simulated_instrument: data.simulated_instrument?.toString() || '',
     notes: data.notes || '',
   };
 }

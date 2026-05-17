@@ -19,6 +19,8 @@ class FlightCreate(BaseModel):
     day_landings: int = 0
     night_landings: int = 0
     instrument_approaches: Optional[int] = 0
+    solo: Optional[float] = 0.0
+    simulated_instrument: Optional[float] = 0.0
     notes: Optional[str] = None
 
 

@@ -35,6 +35,8 @@ export interface Flight {
   day_landings: number;
   night_landings: number;
   instrument_approaches: number | null;
+  solo: number | null;
+  simulated_instrument: number | null;
   notes: string | null;
   created_at: string;
 }

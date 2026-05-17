@@ -35,7 +35,7 @@ export default function LoginPage() {
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">Welcome back</h1>
       <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Sign in to your FlightDesk account</p>
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5 sm:p-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
             <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl px-4 py-3 text-sm">

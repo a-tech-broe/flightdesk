@@ -131,7 +131,7 @@ export default function FlightsPage() {
       </div>
 
       {flights.length === 0 ? (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-16 text-center">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-8 sm:p-16 text-center">
           <div className="text-5xl mb-4">✈</div>
           <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-1">No flights logged yet</h3>
           <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">Start building your logbook today.</p>

@@ -122,7 +122,7 @@ export default function FlightForm({ initialData, flightId }: Props) {
       )}
 
       <Section title="Flight Info">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Date *">
             <input type="date" required value={form.date} onChange={set('date')} className={inputCls} />
           </Field>
@@ -182,7 +182,7 @@ export default function FlightForm({ initialData, flightId }: Props) {
       </Section>
 
       <Section title="Landings & Approaches">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Field label="Day Ldg">
             <input type="number" min="0" value={form.day_landings} onChange={set('day_landings')} className={inputCls} placeholder="0" />
           </Field>
@@ -196,7 +196,7 @@ export default function FlightForm({ initialData, flightId }: Props) {
       </Section>
 
       <Section title="Solo & Simulated Instrument">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Solo">
             <input type="number" step="0.1" min="0" value={form.solo} onChange={set('solo')} className={inputCls} placeholder="0.0" />
           </Field>

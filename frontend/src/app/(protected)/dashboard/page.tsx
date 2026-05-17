@@ -79,7 +79,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
           {user?.full_name ? `Welcome back, ${user.full_name.split(' ')[0]}` : 'Dashboard'}

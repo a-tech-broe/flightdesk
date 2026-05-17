@@ -89,7 +89,7 @@ export default function FlightMap({ flights }: { flights: Flight[] }) {
 
   if (loadingCoords) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 gap-3">
+      <div className="flex flex-col items-center justify-center h-64 sm:h-96 gap-3">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         <p className="text-sm text-gray-400 dark:text-gray-500">Loading airport coordinates…</p>
       </div>
@@ -114,7 +114,7 @@ export default function FlightMap({ flights }: { flights: Flight[] }) {
       </div>
 
       {/* Map */}
-      <div className="rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800" style={{ height: 520 }}>
+      <div className="rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 h-64 sm:h-96 lg:h-[520px]">
         <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'

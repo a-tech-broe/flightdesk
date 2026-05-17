@@ -190,7 +190,7 @@ export default function CurrencyPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Currency Tracker</h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">

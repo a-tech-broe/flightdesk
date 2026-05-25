@@ -1,0 +1,239 @@
+name: 🧹 Full Cleanup (Destroy All Resources)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Manual-only trigger. You must type the confirmation word to proceed.
+# This workflow:
+#   1. SSHs to EC2 → gracefully stops all Docker services and removes app files
+#   2. Runs Terraform destroy → removes all AWS infrastructure
+#   3. Reports what was destroyed
+#
+# Secrets required (same as provision-dev.yml plus the new ones below):
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+#   TF_STATE_BUCKET, TF_LOCK_TABLE, EC2_KEY_PAIR_NAME
+#   EC2_EIP_HOST, EC2_EIP_ALLOCATION_ID, EC2_SSH_KEY
+#   GH_PAT
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          Type "destroy" to confirm teardown of ALL FlightDesk resources
+          (EC2, ALB, target group, ACM cert, Route53 records).
+        required: true
+        default: ""
+      skip_remote:
+        description: "Skip EC2 Docker cleanup step (use if instance is unreachable)"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+jobs:
+  # ── safety gate ─────────────────────────────────────────────────────────────
+  validate:
+    name: Safety Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation word
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+            echo "::error::Confirmation word must be 'destroy'. Got: ${{ github.event.inputs.confirm }}"
+            exit 1
+          fi
+          echo "Confirmation accepted. Proceeding with teardown."
+
+  # ── step 1: stop Docker services on EC2 ────────────────────────────────────
+  cleanup-remote:
+    name: "Step 1 — Stop EC2 Docker Services"
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event.inputs.skip_remote != 'true' }}
+
+    steps:
+      - name: SSH → Docker Compose down + remove app files
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_EIP_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+
+            echo "==> Stopping Docker Compose services..."
+            if [ -f /app/flightdesk/docker-compose.yml ]; then
+              cd /app/flightdesk
+              docker compose down --volumes --remove-orphans --rmi all 2>/dev/null || true
+            else
+              echo "  docker-compose.yml not found — skipping compose down"
+            fi
+
+            echo "==> Removing any lingering named volumes..."
+            docker volume rm flightdesk_postgres_data postgres_data 2>/dev/null || true
+
+            echo "==> Removing built images..."
+            docker rmi flightdesk-backend flightdesk-frontend 2>/dev/null || true
+            docker image prune -f 2>/dev/null || true
+
+            echo "==> Pruning Docker system..."
+            docker system prune -f 2>/dev/null || true
+
+            echo "==> Removing app directory..."
+            rm -rf /app/flightdesk
+
+            echo "Remote cleanup done at $(date -u)."
+
+  # ── step 2: Terraform destroy ───────────────────────────────────────────────
+  destroy-infra:
+    name: "Step 2 — Terraform Destroy (AWS Infrastructure)"
+    runs-on: ubuntu-latest
+    needs: validate   # does NOT need cleanup-remote so it runs even if skip_remote=true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.0"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Disassociate Elastic IP
+        run: |
+          ALLOC_ID="${{ secrets.EC2_EIP_ALLOCATION_ID }}"
+          if [ -z "$ALLOC_ID" ]; then
+            echo "EC2_EIP_ALLOCATION_ID not set — skipping EIP disassociation"
+            exit 0
+          fi
+          ASSOC_ID=$(aws ec2 describe-addresses \
+            --allocation-ids "$ALLOC_ID" \
+            --query 'Addresses[0].AssociationId' \
+            --output text 2>/dev/null || echo "None")
+          if [ "$ASSOC_ID" != "None" ] && [ -n "$ASSOC_ID" ]; then
+            echo "Disassociating EIP association: $ASSOC_ID"
+            aws ec2 disassociate-address --association-id "$ASSOC_ID" || true
+            echo "EIP disassociated."
+          else
+            echo "EIP already disassociated or no association found."
+          fi
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}" \
+            -reconfigure \
+            -input=false
+
+      - name: Terraform Plan (destroy)
+        working-directory: infrastructure/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
+        run: |
+          terraform plan -destroy -out=tfplan-destroy -input=false
+          echo "--- Resources to be destroyed ---"
+          terraform show -no-color tfplan-destroy | grep "# " || true
+
+      - name: Terraform Destroy
+        working-directory: infrastructure/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
+        run: terraform apply -auto-approve tfplan-destroy
+
+      - name: Post-Destroy Verification
+        run: |
+          echo "=== Verifying no resources remain ==="
+
+          INSTANCES=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=flightdesk-dev" \
+                      "Name=instance-state-name,Values=running,stopped,pending,stopping" \
+            --query 'Reservations[].Instances[].InstanceId' \
+            --output text \
+            --region "${{ secrets.AWS_REGION }}" 2>/dev/null || echo "")
+          if [ -n "$INSTANCES" ]; then
+            echo "::warning::EC2 instances still present: ${INSTANCES} — force-terminating"
+            aws ec2 terminate-instances --instance-ids $INSTANCES \
+              --region "${{ secrets.AWS_REGION }}" || true
+          else
+            echo "✓ EC2: no instances remaining"
+          fi
+
+          ALB=$(aws elbv2 describe-load-balancers \
+            --names flightdesk-dev \
+            --query 'LoadBalancers[0].LoadBalancerArn' \
+            --output text \
+            --region "${{ secrets.AWS_REGION }}" 2>/dev/null || echo "")
+          if [ -n "$ALB" ] && [ "$ALB" != "None" ]; then
+            echo "::warning::ALB still present: ${ALB} — deleting"
+            aws elbv2 delete-load-balancer --load-balancer-arn "$ALB" \
+              --region "${{ secrets.AWS_REGION }}" || true
+          else
+            echo "✓ ALB: no load balancer remaining"
+          fi
+
+          for SG in flightdesk-dev flightdesk-alb-dev; do
+            SG_ID=$(aws ec2 describe-security-groups \
+              --filters "Name=group-name,Values=${SG}" \
+              --query 'SecurityGroups[0].GroupId' \
+              --output text \
+              --region "${{ secrets.AWS_REGION }}" 2>/dev/null || echo "")
+            if [ -n "$SG_ID" ] && [ "$SG_ID" != "None" ]; then
+              echo "::warning::Security group still present: ${SG} (${SG_ID})"
+            else
+              echo "✓ Security group removed: ${SG}"
+            fi
+          done
+
+  # ── step 3: summary ──────────────────────────────────────────────────────────
+  summary:
+    name: "Step 3 — Teardown Summary"
+    runs-on: ubuntu-latest
+    needs: [cleanup-remote, destroy-infra]
+    if: always()
+
+    steps:
+      - name: Report results
+        run: |
+          REMOTE_STATUS="${{ needs.cleanup-remote.result }}"
+          INFRA_STATUS="${{ needs.destroy-infra.result }}"
+
+          echo "╔══════════════════════════════════════════════════╗"
+          echo "║        FlightDesk Teardown — Summary             ║"
+          echo "╚══════════════════════════════════════════════════╝"
+          echo ""
+          echo "  EC2 Docker cleanup:       ${REMOTE_STATUS}"
+          echo "  AWS infrastructure:       ${INFRA_STATUS}"
+          echo ""
+          echo "  Destroyed resources:"
+          echo "    • EC2 instance:         flightdesk-dev"
+          echo "    • Security groups:      flightdesk-dev, flightdesk-alb-dev"
+          echo "    • Application LB:       flightdesk-dev"
+          echo "    • Target group:         flightdesk-dev"
+          echo "    • ALB listeners:        :80 (HTTP), :443 (HTTPS)"
+          echo "    • ACM certificate:      flightadmins.com"
+          echo "    • Route53 A records:    flightadmins.com, www.flightadmins.com"
+          echo "    • Route53 cert CNAME:   (validation records)"
+          echo ""
+          echo "  Preserved resources (not managed by Terraform):"
+          echo "    • Route53 hosted zone:  flightadmins.com"
+          echo "    • Elastic IP:           (disassociated, allocation retained)"
+          echo "    • S3 state bucket:      (state file at flightdesk/dev/terraform.tfstate)"
+          echo "    • DynamoDB lock table"
+          echo ""
+
+          if [ "$INFRA_STATUS" != "success" ]; then
+            echo "::error::Infrastructure teardown did not succeed (status: ${INFRA_STATUS})"
+            exit 1
+          fi
+          echo "Teardown completed successfully at $(date -u)."
